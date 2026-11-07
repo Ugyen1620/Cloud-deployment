@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cloud Deployment Detective</title>
+<style>
+  :root {
+    --navy: #13233f;
+    --blue: #2563eb;
+    --sky: #eaf3ff;
+    --teal: #0f766e;
+    --gold: #f5b942;
+    --ink: #1f2937;
+    --muted: #64748b;
+    --paper: #ffffff;
+    --line: #dbe4f0;
+    --good: #dcfce7;
+    --bad: #fee2e2;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: Arial, Helvetica, sans-serif; color: var(--ink);
+    background: linear-gradient(135deg, #e8f2ff 0%, #f7faff 52%, #e3f7f3 100%);
+    min-height: 100vh;
+  }
+  .wrap { width: min(960px, 94%); margin: 0 auto; padding: 24px 0 40px; }
+  header {
+    background: var(--navy); color: white; padding: 26px 24px; border-radius: 22px;
+    position: relative; overflow: hidden; box-shadow: 0 12px 30px #13233f20;
+  }
+  header:after { content: "☁"; position: absolute; right: 22px; top: -30px; font-size: 150px; opacity: .11; }
+  .eyebrow { text-transform: uppercase; letter-spacing: 2px; font-size: .76rem; color: #a9d5ff; font-weight: bold; }
+  h1 { margin: 8px 0; font-size: clamp(1.8rem, 4vw, 2.8rem); }
+  header p { max-width: 650px; line-height: 1.55; color: #e5eefc; margin-bottom: 0; }
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .badge { background: #ffffff18; border: 1px solid #ffffff35; border-radius: 999px; padding: 7px 11px; font-size: .85rem; }
+  .panel { background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: 22px; margin-top: 18px; box-shadow: 0 8px 24px #16365b0c; }
+  .topline { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .progress-shell { height: 10px; background: #e8edf5; border-radius: 99px; overflow: hidden; margin: 16px 0 8px; }
+  .progress { height: 100%; width: 0%; background: linear-gradient(90deg, var(--blue), #14b8a6); transition: width .25s ease; }
+  .small { color: var(--muted); font-size: .92rem; }
+  .stats { display: flex; gap: 10px; }
+  .stat { background: #f3f7fc; border-radius: 12px; padding: 10px 14px; min-width: 100px; }
+  .stat strong { display: block; color: var(--navy); font-size: 1.15rem; margin-top: 3px; }
+  .case-tag { display: inline-block; color: #075985; background: #e0f2fe; border-radius: 7px; padding: 6px 9px; font-size: .8rem; font-weight: bold; text-transform: uppercase; letter-spacing: .6px; }
+  h2 { color: var(--navy); margin: 12px 0 8px; font-size: 1.45rem; }
+  .scenario { line-height: 1.65; font-size: 1.08rem; margin: 12px 0 20px; }
+  .choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .choice {
+    background: white; border: 2px solid var(--line); border-radius: 13px; padding: 15px;
+    cursor: pointer; text-align: left; font-size: 1rem; color: var(--ink); display: flex; align-items: flex-start; gap: 11px;
+    transition: border-color .15s, background .15s, transform .15s;
+  }
+  .choice:hover:not(:disabled) { border-color: var(--blue); background: #f5f9ff; transform: translateY(-1px); }
+  .choice:focus-visible, button:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+  .letter { display: grid; place-items: center; min-width: 29px; height: 29px; border-radius: 8px; background: var(--sky); color: var(--blue); font-weight: bold; }
+  .choice.correct { border-color: #16a34a; background: var(--good); }
+  .choice.incorrect { border-color: #dc2626; background: var(--bad); }
+  .choice:disabled { cursor: default; }
+  .feedback { display: none; border-radius: 12px; padding: 14px 16px; margin-top: 16px; line-height: 1.55; }
+  .feedback.show { display: block; }
+  .feedback.good { background: var(--good); border: 1px solid #86efac; }
+  .feedback.bad { background: var(--bad); border: 1px solid #fca5a5; }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; align-items: center; }
+  button.action {
+    border: 0; border-radius: 10px; padding: 12px 17px; font-size: .97rem; font-weight: bold; cursor: pointer;
+    background: var(--blue); color: white;
+  }
+  button.action.secondary { background: #e8eef7; color: var(--navy); }
+  button.action:disabled { opacity: .45; cursor: not-allowed; }
+  .hint { color: #854d0e; background: #fef3c7; border-radius: 10px; padding: 12px 14px; margin-top: 13px; display: none; line-height: 1.5; }
+  .hint.show { display: block; }
+  .reference-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .model { border: 1px solid var(--line); border-radius: 13px; padding: 13px; background: #fbfdff; }
+  .model .emoji { font-size: 1.7rem; }
+  .model h3 { margin: 7px 0 5px; font-size: 1rem; color: var(--navy); }
+  .model p { font-size: .88rem; line-height: 1.5; margin: 0; color: #475569; }
+  .hidden { display: none !important; }
+  .result-score { font-size: 2.5rem; font-weight: bold; color: var(--blue); margin: 10px 0; }
+  .result-message { font-size: 1.08rem; line-height: 1.6; }
+  .takeaways li { margin: 9px 0; line-height: 1.5; }
+  footer { text-align: center; color: #64748b; font-size: .85rem; padding: 20px 8px 0; }
+  @media (max-width: 650px) {
+    .choices { grid-template-columns: 1fr; }
+    .reference-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .panel { padding: 17px; }
+    .stat { min-width: 86px; }
+  }
+  @media (max-width: 380px) { .reference-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Class IX • Digital Technologies / ICT</div>
+    <h1>🕵️ Cloud Deployment Detective</h1>
+    <p>Four cloud models. Twenty mixed questions. Answer multiple-choice questions and fill in the blanks to test what you know about cloud deployment models.</p>
+    <div class="badges">
+      <span class="badge">🎯 Learn by solving cases</span>
+      <span class="badge">⭐ Earn up to 200 points</span>
+      <span class="badge">💡 Hints and instant feedback</span>
+    </div>
+  </header>
+
+  <section class="panel" id="gamePanel">
+    <div class="topline">
+      <div>
+        <div class="small">DETECTIVE PROGRESS</div>
+        <strong id="progressText">Question 1 of 20</strong>
+      </div>
+      <div class="stats">
+        <div class="stat"><span class="small">Score</span><strong id="score">0</strong></div>
+        <div class="stat"><span class="small">Streak</span><strong id="streak">0 🔥</strong></div>
+      </div>
+    </div>
+    <div class="progress-shell"><div class="progress" id="progress"></div></div>
+    <div class="small" id="progressNote">Answer each multiple-choice question or fill in the blank.</div>
+    <div style="margin-top:20px">
+      <span class="case-tag" id="caseTag">Case file 01</span>
+      <h2 id="questionTitle">The Student's Files</h2>
+      <p class="scenario" id="scenario"></p>
+      <div class="choices" id="choices"></div>
+      <div class="hint" id="hint"></div>
+      <div class="feedback" id="feedback" aria-live="polite"></div>
+      <div class="actions">
+        <button class="action secondary" id="hintBtn" type="button">💡 Reveal a hint</button>
+        <button class="action" id="nextBtn" type="button" disabled>Next case →</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="resultPanel" style="display:none">
+    <div class="case-tag">Quiz complete</div>
+    <h2>Quiz complete!</h2>
+    <div class="result-score" id="finalScore">0 / 100</div>
+    <p class="result-message" id="resultMessage"></p>
+    <h3>Key takeaways</h3>
+    <ul class="takeaways">
+      <li><strong>Public cloud:</strong> cloud services are offered to many customers over a network, usually the internet.</li>
+      <li><strong>Private cloud:</strong> cloud infrastructure is dedicated to one organisation.</li>
+      <li><strong>Hybrid cloud:</strong> combines private and public cloud environments.</li>
+      <li><strong>Community cloud:</strong> infrastructure is shared by organisations with common needs, such as similar security or compliance requirements.</li>
+    </ul>
+    <div class="actions"><button class="action" id="restartBtn" type="button">↻ Play again</button></div>
+  </section>
+
+  <section class="panel">
+    <h2>Detective's quick reference</h2>
+    <p class="small">Use these clues before choosing a model.</p>
+    <div class="reference-grid">
+      <div class="model"><div class="emoji">🌐</div><h3>Public cloud</h3><p>Services shared by many customers and accessed through a network.</p></div>
+      <div class="model"><div class="emoji">🔐</div><h3>Private cloud</h3><p>Cloud infrastructure dedicated to one organisation.</p></div>
+      <div class="model"><div class="emoji">🔀</div><h3>Hybrid cloud</h3><p>A combination of private and public cloud environments.</p></div>
+      <div class="model"><div class="emoji">🤝</div><h3>Community cloud</h3><p>Shared by organisations with common needs or requirements.</p></div>
+    </div>
+  </section>
+  <footer>Cloud Deployment Detective • Learning activity for Class IX • Take your time, read the clues, and learn from the feedback.</footer>
+</div>
+
+<script>
+const cases = [
+ {type:"mcq",title:"1. The Student's Files",scenario:"Pema saves homework in an online drive available to many different customers. Which deployment model is this?",answer:"Public Cloud",options:["Public Cloud","Private Cloud","Hybrid Cloud","Community Cloud"],hint:"The service is offered to many customers.",explanation:"Public cloud services are offered to many customers and are commonly accessed over the internet."},
+ {type:"blank",title:"2. Dedicated to One Organisation",scenario:"A cloud environment used exclusively by one organisation is called a ______ cloud.",answer:["private"],hint:"It is reserved for one organisation.",explanation:"A private cloud is dedicated to one organisation."},
+ {type:"mcq",title:"3. Hospitals Working Together",scenario:"Several hospitals share a cloud environment designed around common healthcare and privacy requirements. Which model fits best?",answer:"Community Cloud",options:["Public Cloud","Private Cloud","Hybrid Cloud","Community Cloud"],hint:"The organisations share common needs.",explanation:"A community cloud is shared by organisations with common needs or requirements."},
+ {type:"blank",title:"4. Combining Two Environments",scenario:"A company uses both private and public cloud environments. This is a ______ cloud.",answer:["hybrid"],hint:"Think of a mixture or combination.",explanation:"A hybrid cloud combines private and public cloud environments."},
+ {type:"mcq",title:"5. Online Learning Platform",scenario:"A teacher uses a widely available online learning service that serves many schools and families. Which model is most likely?",answer:"Public Cloud",options:["Community Cloud","Public Cloud","Private Cloud","Hybrid Cloud"],hint:"Many different customers can use the service.",explanation:"A public cloud service is generally offered to many customers."},
+ {type:"blank",title:"6. Research Partners",scenario:"A cloud platform shared by universities with common research needs is an example of a ______ cloud.",answer:["community"],hint:"Separate organisations share it for a common purpose.",explanation:"Community clouds serve organisations with shared needs, such as research requirements."},
+ {type:"mcq",title:"7. The Bank's Vault",scenario:"A bank wants its cloud infrastructure reserved only for its own organisation. Which model should it choose?",answer:"Private Cloud",options:["Public Cloud","Community Cloud","Private Cloud","Hybrid Cloud"],hint:"The infrastructure is not shared with other organisations.",explanation:"Private cloud infrastructure is dedicated to one organisation."},
+ {type:"blank",title:"8. More Visitors During a Sale",scenario:"An online shop keeps sensitive records in a private cloud but uses public cloud resources for extra traffic. This is a ______ cloud approach.",answer:["hybrid"],hint:"The shop combines private and public cloud.",explanation:"Combining private and public environments is a hybrid cloud approach."},
+ {type:"mcq",title:"9. Government Agencies",scenario:"Several government agencies with similar security requirements share one cloud environment built for their needs. Which model fits best?",answer:"Community Cloud",options:["Private Cloud","Public Cloud","Hybrid Cloud","Community Cloud"],hint:"Several agencies share it because of common requirements.",explanation:"A community cloud can be shared by organisations with similar security or data-handling requirements."},
+ {type:"blank",title:"10. The General Public",scenario:"Cloud services made available to many customers over the internet are commonly called ______ cloud services.",answer:["public"],hint:"This model is available to customers generally.",explanation:"Public cloud services are available to many customers, usually over the internet."},
+ {type:"mcq",title:"11. One Company's Cloud",scenario:"A company uses cloud infrastructure reserved for its own use. Other companies do not share it. Identify the model.",answer:"Private Cloud",options:["Hybrid Cloud","Private Cloud","Public Cloud","Community Cloud"],hint:"The key clue is exclusive use by one organisation.",explanation:"The defining feature of a private cloud is that it is dedicated to one organisation."},
+ {type:"blank",title:"12. Shared Needs",scenario:"A cloud infrastructure shared by organisations that have similar needs is called a ______ cloud.",answer:["community"],hint:"The word refers to a group with something in common.",explanation:"A community cloud is shared by organisations with common needs or requirements."},
+ {type:"mcq",title:"13. A School Club's Tool",scenario:"A school club uses an online tool offered to customers generally and does not own dedicated cloud infrastructure. Which model best describes it?",answer:"Public Cloud",options:["Private Cloud","Hybrid Cloud","Public Cloud","Community Cloud"],hint:"The service is available to customers in general.",explanation:"A public cloud is often used to access online services without owning dedicated cloud infrastructure."},
+ {type:"blank",title:"14. Private Plus Public",scenario:"The two environments combined in a hybrid cloud are the ______ cloud and the ______ cloud.",answer:["private public"],hint:"One is reserved for an organisation; the other serves many customers.",explanation:"Hybrid cloud combines private and public cloud environments."},
+ {type:"mcq",title:"15. Universities Collaborating",scenario:"Several universities share a platform with agreed access rules and common research requirements. Which deployment model is the best fit?",answer:"Community Cloud",options:["Public Cloud","Private Cloud","Community Cloud","Hybrid Cloud"],hint:"They are different organisations with a shared purpose.",explanation:"A community cloud can support a group of universities with common research requirements."},
+ {type:"blank",title:"16. A Single Organisation",scenario:"A ______ cloud is dedicated to one organisation.",answer:["private"],hint:"It is not shared with other organisations.",explanation:"Private cloud infrastructure is dedicated to one organisation."},
+ {type:"mcq",title:"17. Festival Booking Website",scenario:"A festival organiser uses a private cloud for its main booking system and public cloud resources when visitor numbers rise. Which model is this?",answer:"Hybrid Cloud",options:["Community Cloud","Public Cloud","Private Cloud","Hybrid Cloud"],hint:"It uses two different cloud environments together.",explanation:"Using both private and public cloud environments is a hybrid cloud approach."},
+ {type:"blank",title:"18. Name the Model",scenario:"Public, private, hybrid and community are four cloud deployment ______.",answer:["models"],hint:"They describe different ways cloud infrastructure is organised or shared.",explanation:"Public, private, hybrid and community are four cloud deployment models."},
+ {type:"mcq",title:"19. Streaming a Lesson",scenario:"A teacher shares a video using a platform whose cloud service is used by many schools, families and other customers. Which model is it?",answer:"Public Cloud",options:["Private Cloud","Public Cloud","Community Cloud","Hybrid Cloud"],hint:"The provider serves many different customers.",explanation:"This is a public cloud example because the service is available to many customers."},
+ {type:"blank",title:"20. Final Case",scenario:"A cloud environment that is not a mix of private and public cloud, but is shared by organisations with common requirements, is a ______ cloud.",answer:["community"],hint:"Think of a group of organisations with similar needs.",explanation:"A community cloud is shared by organisations with common requirements."}
+];
+const models = ["Public Cloud", "Private Cloud", "Hybrid Cloud", "Community Cloud"];
+let current = 0, score = 0, streak = 0, answered = false, hintUsed = false;
+const $ = id => document.getElementById(id);
+function renderCase() {
+  answered = false; hintUsed = false;
+  const item = cases[current];
+  $("progressText").textContent = `Question ${current + 1} of ${cases.length}`;
+  $("progress").style.width = `${(current / cases.length) * 100}%`;
+  $("progressNote").textContent = `${cases.length - current} question${cases.length-current===1?"":"s"} left`;
+  $("score").textContent = score; $("streak").textContent = `${streak} 🔥`;
+  $("caseTag").textContent = `${item.type === "mcq" ? "Multiple choice" : "Fill in the blank"} • Question ${String(current+1).padStart(2,"0")}`;
+  $("questionTitle").textContent = item.title; $("scenario").textContent = item.scenario;
+  $("hint").textContent = `Hint: ${item.hint}`; $("hint").className = "hint";
+  $("feedback").className = "feedback"; $("feedback").textContent = "";
+  $("hintBtn").disabled = false; $("hintBtn").textContent = "💡 Reveal a hint";
+  $("nextBtn").disabled = true; $("nextBtn").textContent = current === cases.length-1 ? "View results →" : "Next question →";
+  const choices = $("choices"); choices.innerHTML = "";
+  if (item.type === "mcq") {
+    choices.className = "choices";
+    const shuffled = [...item.options].sort(() => Math.random() - 0.5);
+    shuffled.forEach((model,index) => {
+      const btn = document.createElement("button"); btn.type="button"; btn.className="choice";
+      btn.innerHTML = `<span class="letter">${String.fromCharCode(65+index)}</span><span><strong>${model}</strong></span>`;
+      btn.addEventListener("click",()=>checkAnswer(model,btn)); choices.appendChild(btn);
+    });
+  } else {
+    choices.className = "choices";
+    const wrap = document.createElement("div"); wrap.style.gridColumn="1 / -1";
+    const input = document.createElement("input"); input.id="blankAnswer"; input.type="text"; input.autocomplete="off";
+    input.placeholder="Type your answer here"; input.setAttribute("aria-label","Fill in the blank answer");
+    input.style.cssText="width:100%;padding:14px;border:2px solid #dbe4f0;border-radius:12px;font-size:1rem;margin-bottom:10px";
+    const submit = document.createElement("button"); submit.type="button"; submit.className="action"; submit.textContent="Check answer";
+    submit.addEventListener("click",()=>checkAnswer(input.value.trim(),submit));
+    input.addEventListener("keydown",e=>{if(e.key==="Enter") checkAnswer(input.value.trim(),submit)});
+    wrap.append(input,submit); choices.appendChild(wrap); input.focus();
+  }
+}
+function checkAnswer(value, btn) {
+  if (answered) return;
+  const item=cases[current];
+  const normalize = v => String(v).toLowerCase().trim().replace(/\s+/g," ").replace(/[.,!?]/g,"");
+  const correct = item.type === "mcq" ? value === item.answer : item.answer.some(a=>normalize(value)===normalize(a));
+  if (item.type === "blank" && !String(value).trim()) {
+    $("feedback").className="feedback show bad"; $("feedback").textContent="Please enter an answer before checking."; return;
+  }
+  answered=true;
+  [...$("choices").querySelectorAll("button")].forEach(b=>b.disabled=true);
+  if(correct){const points=hintUsed?5:10;score+=points;streak++;
+    $("feedback").className="feedback show good";
+    $("feedback").innerHTML=`<strong>✅ Correct! +${points} points</strong><br>${item.explanation}${hintUsed?"<br><em>You used a hint, so this question earned 5 points.</em>":""}`;
+  } else {streak=0;if(btn && btn.classList.contains("choice"))btn.classList.add("incorrect");
+    const answer=Array.isArray(item.answer)?item.answer[0]:item.answer;
+    $("feedback").className="feedback show bad";
+    $("feedback").innerHTML=`<strong>❌ Not quite. Correct answer: ${answer}.</strong><br>${item.explanation}`;
+  }
+  $("score").textContent=score; $("streak").textContent=`${streak} 🔥`;
+  $("progress").style.width=`${((current+1)/cases.length)*100}%`;
+  $("progressNote").textContent=correct?"Well done! Read the explanation before moving on.":"Review the explanation, then continue.";
+  $("nextBtn").disabled=false; $("hintBtn").disabled=true;
+}
+$("hintBtn").addEventListener("click",()=>{if(!hintUsed&&!answered){hintUsed=true;$("hint").classList.add("show");$("hintBtn").textContent="Hint revealed";}});
+$("nextBtn").addEventListener("click",()=>{if(current<cases.length-1){current++;renderCase();}else showResults();});
+function showResults(){
+  $("gamePanel").style.display="none";$("resultPanel").style.display="block";$("progress").style.width="100%";
+  $("finalScore").textContent=`${score} / 200`;
+  let message;
+  if(score>=180)message="Outstanding work! You understand cloud deployment models very well.";
+  else if(score>=140)message="Great work! Review any questions you missed to strengthen your understanding.";
+  else if(score>=100)message="Good effort! Revisit the quick reference and try again.";
+  else message="Keep practising. Read the four model summaries and replay the questions to improve your score.";
+  $("resultMessage").textContent=`You earned ${score} points out of 200. ${message}`;
+}
+$("restartBtn").addEventListener("click",()=>{current=0;score=0;streak=0;$("resultPanel").style.display="none";$("gamePanel").style.display="block";renderCase();});
+renderCase();
+</script>
+</body>
+</html>
